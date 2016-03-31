@@ -1,0 +1,76 @@
+#!/usr/bin/env python
+""" Subversion pre-commit hook that disallows nocommit/NOCOMMIT strings in checkins.
+Adapted from http://wordaligned.org/articles/a-subversion-pre-commit-hook
+"""
+import subprocess
+import re
+
+forbidden_string="nocommit"
+
+def command_output(cmd):
+  " Capture a command's standard output. "
+  return subprocess.Popen(
+      cmd.split(), stdout=subprocess.PIPE).communicate()[0]
+
+def return_value_of_cmd(cmd):
+  " Capture a command's standard output. "
+  return subprocess.Popen(cmd, shell=True).wait()
+
+def files_changed(look_cmd):
+  """ List the files added or updated by this transaction.
+
+"svnlook changed" gives output like:
+  U   trunk/file1.cpp
+  A   trunk/file2.cpp
+  """
+  def filename(line):
+      return line[4:]
+  def added_or_updated(line):
+      return line and line[0] in ("A", "U")
+  def is_file(line):
+      return not line.endswith('/')
+  return [
+      filename(line)
+      for line in command_output(look_cmd % "changed").split("\n")
+      if added_or_updated(line) and is_file(line) ]
+
+def file_contains_string(filename, look_cmd, string):
+  " Return a file's contents for this transaction. "
+  return return_value_of_cmd(
+     "%s %s | grep -qi %s" % (look_cmd % "cat", re.escape(filename), string)) == 0  # grep will return 0 if a match is found
+
+def check_files_for_forbidden_string(look_cmd):
+  " Check files in this transaction don't contain the forbidden string. "
+  files_with_forbidden_string = [
+      ff for ff in files_changed(look_cmd)
+      if file_contains_string(ff, look_cmd, forbidden_string)]
+  if len(files_with_forbidden_string) > 0:
+      sys.stderr.write("The following files contain %s:\n%s\n\nPlease fix and attempt commit again.\n"
+                       % (forbidden_string.upper(), "\n".join(files_with_forbidden_string)))
+  return len(files_with_forbidden_string)
+
+def main():
+  usage = """usage: %prog REPOS TXN
+
+Run pre-commit options on a repository transaction."""
+  from optparse import OptionParser
+  parser = OptionParser(usage=usage)
+  parser.add_option("-r", "--revision",
+                    help="Test mode. TXN actually refers to a revision.",
+                    action="store_true", default=False)
+  errors = 0
+  try:
+      (opts, (repos, txn_or_rvn)) = parser.parse_args()
+      look_opt = ("--transaction", "--revision")[opts.revision]
+      look_cmd = "svnlook %s %s %s %s" % (
+          "%s", repos, look_opt, txn_or_rvn)
+      errors += check_files_for_forbidden_string(look_cmd)
+  except Exception, e:
+      print e
+      parser.print_help()
+      errors += 1
+  return errors
+
+if __name__ == "__main__":
+  import sys
+  sys.exit(main())
