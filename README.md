@@ -3,6 +3,7 @@ A commit hook to prevent accidental commits
 
 Go to start of metadata
 We have a pre-commit hook in our Subversion server which makes subversion reject any file that contains the string NOCOMMIT (case insensitive, so nocommit will work too). Here is a little demo:
+
     bash /tmp/xyz/workspace> echo "NOCOMMIT" >>  main.cpp
     bash /tmp/xyz/workspace> svn commit -m "test commit"
     Sending        main.cpp
