@@ -30,7 +30,7 @@ I usually write a reason behind NOCOMMIT so I won't forget why I put it there. C
      
     printf("NOCOMMIT: some debug message");
 
-How to install:
+## How to install:
 
-   cp nocommit.svn /path-to-svn-server-root/hooks/pre-commit
+    cp nocommit.svn /path-to-svn-server-root/hooks/pre-commit
 
